@@ -87,6 +87,8 @@ class LeadController extends Controller
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:100',
+            'birth_date' => 'nullable|date',
+            'anniversary_date' => 'nullable|date',
             'vehicle_segment' => 'required|string|in:2 Wheeler,4 Wheeler,2 wheeler,4 wheeler',
             'brand_id' => 'nullable|exists:brands,id',
             'brand_name' => 'nullable|string|max:255',
@@ -131,6 +133,8 @@ class LeadController extends Controller
             'phone' => $request->phone,
             'city' => $request->city,
             'state' => $request->state,
+            'birth_date' => $request->birth_date,
+            'anniversary_date' => $request->anniversary_date,
             'vehicle_segment' => $request->vehicle_segment,
             'brand_id' => $request->brand_id,
             'brand_name' => $brandName,
@@ -219,6 +223,8 @@ class LeadController extends Controller
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:100',
+            'birth_date' => 'nullable|date',
+            'anniversary_date' => 'nullable|date',
             'vehicle_segment' => 'required|string|in:2 Wheeler,4 Wheeler,2 wheeler,4 wheeler',
             'brand_id' => 'nullable|exists:brands,id',
             'brand_name' => 'nullable|string|max:255',
@@ -269,6 +275,8 @@ class LeadController extends Controller
             'phone' => $request->phone,
             'city' => $request->city,
             'state' => $request->state,
+            'birth_date' => $request->has('birth_date') ? $request->birth_date : $lead->birth_date,
+            'anniversary_date' => $request->has('anniversary_date') ? $request->anniversary_date : $lead->anniversary_date,
             'vehicle_segment' => $request->vehicle_segment,
             'brand_id' => $request->brand_id,
             'brand_name' => $brandName,
@@ -496,16 +504,33 @@ class LeadController extends Controller
     }
 
     /**
-     * Helper to resolve assign_by user ID
+     * Trigger Birthday & Anniversary Greetings dispatch on-demand via API
      */
-    protected function resolveAssignByUserId($assignBy = null)
+    public function sendGreetingsNow(Request $request)
     {
-        if ($assignBy && is_numeric($assignBy) && User::find($assignBy)) {
-            return (int) $assignBy;
+        $dryRun = $request->boolean('dry_run', false);
+        $force = $request->boolean('force', false);
+
+        $params = [];
+        if ($dryRun) $params['--dry-run'] = true;
+        if ($force) $params['--force'] = true;
+
+        try {
+            \Illuminate\Support\Facades\Artisan::call('leads:send-wishes', $params);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Greetings automation executed successfully.',
+                'dry_run' => $dryRun,
+                'force' => $force,
+                'output' => $output,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to execute greetings automation: ' . $e->getMessage(),
+            ], 500);
         }
-        if (auth()->check()) {
-            return auth()->id();
-        }
-        return User::where('role', 'Super Admin')->first()?->id ?? User::first()?->id;
     }
 }

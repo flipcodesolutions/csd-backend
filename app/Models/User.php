@@ -34,4 +34,12 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Relationship: User has created many quotations
+     */
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class, 'created_by');
+    }
 }

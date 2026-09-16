@@ -5,8 +5,10 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\LeadAssignmentHistoryController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadSourceController;
+use App\Http\Controllers\LeadStatusController;
 use App\Http\Controllers\SalesExecutiveFollowUpController;
 use App\Http\Controllers\SalesExecutiveLeadController;
+use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleVariantController;
@@ -52,8 +54,14 @@ Route::post('leads/bulk-assign', [LeadController::class, 'bulkAssign']);
 // Specific Lead Assignment History Route
 Route::get('leads/{id}/assignments', [LeadAssignmentHistoryController::class, 'getByLead']);
 
+// Get Lead details formatted for Quotation creation
+Route::get('leads/{id}/quotation', [QuotationController::class, 'getLeadForQuotation']);
+
 // Lead Assignment History Master CRUD API
 Route::apiResource('lead-assignments', LeadAssignmentHistoryController::class);
+
+// Trigger Birthday & Anniversary Greetings Dispatch (GET method only)
+Route::get('leads/send-greetings-now', [LeadController::class, 'sendGreetingsNow']);
 
 // Customer Leads Master CRUD API
 Route::apiResource('leads', LeadController::class);
@@ -61,4 +69,7 @@ Route::apiResource('leads', LeadController::class);
 // Users Master CRUD API
 Route::apiResource('users', UserController::class);
 
-
+// Quotations API Routes
+Route::post('quotations/{id}/send', [QuotationController::class, 'sendEmail']);
+Route::get('quotations/{id}/pdf', [QuotationController::class, 'downloadPdf']);
+Route::apiResource('quotations', QuotationController::class);

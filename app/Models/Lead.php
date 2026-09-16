@@ -15,6 +15,10 @@ class Lead extends Model
         'phone',
         'city',
         'state',
+        'birth_date',
+        'anniversary_date',
+        'last_birthday_wished_year',
+        'last_anniversary_wished_year',
         'vehicle_segment',
         'brand_id',
         'brand_name',
@@ -30,13 +34,45 @@ class Lead extends Model
     ];
 
     /**
+     * Cast attributes to native types
+     */
+    protected $casts = [
+        'birth_date' => 'date:Y-m-d',
+        'anniversary_date' => 'date:Y-m-d',
+        'last_birthday_wished_year' => 'integer',
+        'last_anniversary_wished_year' => 'integer',
+    ];
+
+    /**
      * Computed dynamic attributes appended to JSON serialization
      */
     protected $appends = [
         'assigned_to_display',
         'assigned_by_display',
         'assigned_by_user',
+        'is_birthday_today',
+        'is_anniversary_today',
     ];
+
+    /**
+     * Accessor: Check if today is the lead's birthday (matching MM-DD)
+     */
+    public function getIsBirthdayTodayAttribute(): bool
+    {
+        if (!$this->birth_date) return false;
+        $dob = is_string($this->birth_date) ? \Carbon\Carbon::parse($this->birth_date) : $this->birth_date;
+        return $dob->format('m-d') === now()->format('m-d');
+    }
+
+    /**
+     * Accessor: Check if today is the lead's anniversary (matching MM-DD)
+     */
+    public function getIsAnniversaryTodayAttribute(): bool
+    {
+        if (!$this->anniversary_date) return false;
+        $anni = is_string($this->anniversary_date) ? \Carbon\Carbon::parse($this->anniversary_date) : $this->anniversary_date;
+        return $anni->format('m-d') === now()->format('m-d');
+    }
 
     /**
      * Relationship: Lead belongs to a Brand
@@ -100,6 +136,22 @@ class Lead extends Model
     public function latestFollowUp()
     {
         return $this->hasOne(LeadFollowUp::class, 'lead_id')->latestOfMany();
+    }
+
+    /**
+     * Relationship: Lead has many quotations
+     */
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class, 'lead_id')->latest();
+    }
+
+    /**
+     * Relationship: Latest quotation record
+     */
+    public function latestQuotation()
+    {
+        return $this->hasOne(Quotation::class, 'lead_id')->latestOfMany();
     }
 
     /**
