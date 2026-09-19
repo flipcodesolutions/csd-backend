@@ -14,9 +14,12 @@ class LeadController extends Controller
 {
     /**
      * Get list of all leads with associated relationships & filters
+     * Supports backend role-based access control for authenticated user
      */
     public function index(Request $request)
     {
+        $user = $request->user('sanctum') ?? auth('sanctum')->user() ?? auth()->user();
+
         $query = Lead::with([
             'brand',
             'source',
@@ -26,7 +29,16 @@ class LeadController extends Controller
             'latestAssignment.assignedToUser',
         ]);
 
-        // Search across customer name, phone, email, model/variant, city
+        // Backend Role-Based Lead Access:
+        // Sales Executive receives only their assigned leads
+        if ($user && in_array(strtolower(str_replace(' ', '_', $user->role)), ['sales_executive', 'sales_rep', 'sales_consultant'])) {
+            $query->where(function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('assigned_user_name', 'like', '%' . $user->name . '%');
+            });
+        }
+
+        // Search across customer name, phone, email, model/variant, city, brand
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -41,7 +53,7 @@ class LeadController extends Controller
 
         // Filter by Priority (Hot / Warm / Cold)
         if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
+            $query->where('priority', ucfirst(strtolower($request->priority)));
         }
 
         // Filter by Vehicle Segment (2 Wheeler / 4 Wheeler)
@@ -67,12 +79,42 @@ class LeadController extends Controller
             $query->where('source_id', $request->source_id);
         }
 
+        // Filter by Assigned User (Admin/Manager filter)
+        if ($request->filled('assigned_to')) {
+            $query->where('assigned_to', $request->assigned_to);
+        }
+
+        // Handle Pagination or Full List
+        $perPage = (int) $request->get('per_page', 0);
+        if ($perPage > 0 || $request->filled('page')) {
+            $perPage = $perPage > 0 ? $perPage : 15;
+            $paginated = $query->latest()->paginate($perPage);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Leads retrieved successfully',
+                'data' => $paginated->items(),
+                'pagination' => [
+                    'current_page' => $paginated->currentPage(),
+                    'last_page' => $paginated->lastPage(),
+                    'per_page' => $paginated->perPage(),
+                    'total' => $paginated->total(),
+                ],
+            ]);
+        }
+
         $leads = $query->latest()->get();
 
         return response()->json([
             'status' => true,
             'message' => 'Leads retrieved successfully',
             'data' => $leads,
+            'pagination' => [
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => count($leads),
+                'total' => count($leads),
+            ],
         ]);
     }
 
@@ -178,8 +220,10 @@ class LeadController extends Controller
     /**
      * Get a single customer lead
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user('sanctum') ?? auth('sanctum')->user() ?? auth()->user();
+
         $lead = Lead::with([
             'brand',
             'source',
@@ -187,6 +231,8 @@ class LeadController extends Controller
             'assignedUser',
             'latestAssignment.assignedByUser',
             'latestAssignment.assignedToUser',
+            'followUps.user',
+            'assignmentHistories.assignedByUser',
         ])->find($id);
 
         if (!$lead) {
@@ -194,6 +240,17 @@ class LeadController extends Controller
                 'status' => false,
                 'message' => 'Lead not found',
             ], 404);
+        }
+
+        // Scope check for Sales Executive
+        if ($user && in_array(strtolower(str_replace(' ', '_', $user->role)), ['sales_executive', 'sales_rep', 'sales_consultant'])) {
+            $isOwner = ($lead->assigned_to == $user->id) || (!empty($lead->assigned_user_name) && stripos($lead->assigned_user_name, $user->name) !== false);
+            if (!$isOwner) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You do not have permission to access this lead.',
+                ], 403);
+            }
         }
 
         return response()->json([
@@ -208,6 +265,7 @@ class LeadController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $user = $request->user('sanctum') ?? auth('sanctum')->user() ?? auth()->user();
         $lead = Lead::find($id);
 
         if (!$lead) {
@@ -215,6 +273,17 @@ class LeadController extends Controller
                 'status' => false,
                 'message' => 'Lead not found',
             ], 404);
+        }
+
+        // Scope check for Sales Executive
+        if ($user && in_array(strtolower(str_replace(' ', '_', $user->role)), ['sales_executive', 'sales_rep', 'sales_consultant'])) {
+            $isOwner = ($lead->assigned_to == $user->id) || (!empty($lead->assigned_user_name) && stripos($lead->assigned_user_name, $user->name) !== false);
+            if (!$isOwner) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You do not have permission to update this lead.',
+                ], 403);
+            }
         }
 
         $request->validate([
