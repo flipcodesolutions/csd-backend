@@ -2,11 +2,11 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\FollowUpController;
 use App\Http\Controllers\LeadAssignmentHistoryController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LeadStatusController;
-use App\Http\Controllers\SalesExecutiveFollowUpController;
 use App\Http\Controllers\SalesExecutiveLeadController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\UserController;
@@ -26,8 +26,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->prefix('sales-executive')->group(function () {
     Route::get('/leads', [SalesExecutiveLeadController::class, 'index']);
     Route::get('/leads/{lead}', [SalesExecutiveLeadController::class, 'show']);
-    Route::get('/leads/{lead}/follow-ups', [SalesExecutiveFollowUpController::class, 'index']);
-    Route::post('/leads/{lead}/follow-ups', [SalesExecutiveFollowUpController::class, 'store']);
+    Route::get('/leads/{lead}/follow-ups', [FollowUpController::class, 'getByLead']);
+    Route::post('/leads/{lead}/follow-ups', [FollowUpController::class, 'store']);
 });
 
 // Lead Sources Master CRUD API
@@ -50,9 +50,16 @@ Route::post('leads/bulk-delete', [LeadController::class, 'bulkDelete']);
 Route::post('leads/bulk-status', [LeadController::class, 'bulkStatus']);
 Route::post('leads/bulk-priority', [LeadController::class, 'bulkPriority']);
 Route::post('leads/bulk-assign', [LeadController::class, 'bulkAssign']);
+Route::post('leads/bulk-import', [LeadController::class, 'bulkImport']);
+Route::post('leads/import', [LeadController::class, 'bulkImport']);
 
 // Specific Lead Assignment History Route
 Route::get('leads/{id}/assignments', [LeadAssignmentHistoryController::class, 'getByLead']);
+
+// Unified Lead Follow-Ups API (Role Managed)
+Route::get('leads/{id}/follow-ups', [FollowUpController::class, 'getByLead']);
+Route::post('leads/{id}/follow-ups', [FollowUpController::class, 'store']);
+Route::apiResource('follow-ups', FollowUpController::class);
 
 // Get Lead details formatted for Quotation creation
 Route::get('leads/{id}/quotation', [QuotationController::class, 'getLeadForQuotation']);

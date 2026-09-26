@@ -5,24 +5,29 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\LeadFollowUp;
 use App\Models\LeadStatus;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class SalesExecutiveFollowUpController extends Controller
 {
     /**
-     * Get follow-up history for a specific assigned lead
+     * Get follow-up history for a specific lead
      */
-    public function index($leadId)
+    public function index(Request $request, $leadId)
     {
-        $user = auth()->user();
+        $user = $request->user('sanctum') ?? auth('sanctum')->user() ?? auth()->user();
 
-        // Security check: verify lead belongs to authenticated executive
-        $lead = Lead::where('id', $leadId)
-            ->where(function ($q) use ($user) {
+        $query = Lead::where('id', $leadId);
+
+        // Security check for Sales Executive role
+        if ($user && in_array(strtolower(str_replace(' ', '_', $user->role)), ['sales_executive', 'sales_rep', 'sales_consultant'])) {
+            $query->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
                   ->orWhere('assigned_user_name', 'like', '%' . $user->name . '%');
-            })
-            ->first();
+            });
+        }
+
+        $lead = $query->first();
 
         if (!$lead) {
             return response()->json([
@@ -39,24 +44,35 @@ class SalesExecutiveFollowUpController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Follow-up history fetched successfully',
+            'lead' => [
+                'id' => $lead->id,
+                'name' => $lead->name,
+                'phone' => $lead->phone,
+                'status_name' => $lead->status_name,
+                'assigned_user_name' => $lead->assigned_user_name,
+            ],
             'data' => $followUps,
         ]);
     }
 
     /**
-     * Create/log a new follow-up interaction on an assigned lead
+     * Create/log a new follow-up interaction on a lead
      */
     public function store(Request $request, $leadId)
     {
-        $user = auth()->user();
+        $user = $request->user('sanctum') ?? auth('sanctum')->user() ?? auth()->user();
 
-        // Security check: verify lead belongs to authenticated executive
-        $lead = Lead::where('id', $leadId)
-            ->where(function ($q) use ($user) {
+        $query = Lead::where('id', $leadId);
+
+        // Security check for Sales Executive role
+        if ($user && in_array(strtolower(str_replace(' ', '_', $user->role)), ['sales_executive', 'sales_rep', 'sales_consultant'])) {
+            $query->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
                   ->orWhere('assigned_user_name', 'like', '%' . $user->name . '%');
-            })
-            ->first();
+            });
+        }
+
+        $lead = $query->first();
 
         if (!$lead) {
             return response()->json([
@@ -77,15 +93,17 @@ class SalesExecutiveFollowUpController extends Controller
             'lead_status_name' => 'nullable|string|max:100',
         ]);
 
-        // Auto-assign user_id from authenticated token
+        $userId = $user ? $user->id : ($lead->assigned_to ?? User::first()?->id);
+
+        // Auto-assign user_id from authenticated token or lead executive
         $followUp = LeadFollowUp::create([
             'lead_id' => $lead->id,
-            'user_id' => $user->id,
-            'follow_up_date' => $request->follow_up_date,
+            'user_id' => $userId,
+            'follow_up_date' => date('Y-m-d', strtotime($request->follow_up_date)),
             'follow_up_time' => $request->follow_up_time,
             'type' => $request->type,
             'notes' => $request->notes,
-            'next_follow_up_date' => $request->next_follow_up_date,
+            'next_follow_up_date' => $request->filled('next_follow_up_date') ? date('Y-m-d', strtotime($request->next_follow_up_date)) : null,
             'next_follow_up_time' => $request->next_follow_up_time,
             'status' => ucfirst(strtolower($request->status)),
         ]);
