@@ -7,6 +7,10 @@ use App\Http\Controllers\LeadAssignmentHistoryController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LeadStatusController;
+use App\Http\Controllers\DealController;
+use App\Http\Controllers\DealPaymentController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\SalesExecutiveLeadController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\UserController;
@@ -80,3 +84,25 @@ Route::apiResource('users', UserController::class);
 Route::post('quotations/{id}/send', [QuotationController::class, 'sendEmail']);
 Route::get('quotations/{id}/pdf', [QuotationController::class, 'downloadPdf']);
 Route::apiResource('quotations', QuotationController::class);
+
+// Deals & Bookings API Routes
+Route::get('deals/stats', [DealController::class, 'stats']);
+Route::get('deals/convert-lead/{leadId}', [DealController::class, 'getLeadForDeal']);
+Route::post('deals/convert-lead', [DealController::class, 'convertLead']);
+Route::get('deals/{dealId}/payments', [DealPaymentController::class, 'getByDeal']);
+Route::apiResource('deals', DealController::class);
+
+// Deal Payments & Payment Receipts API Routes
+Route::get('payments/stats', [DealPaymentController::class, 'stats']);
+Route::get('payments/pending-clearance', [DealPaymentController::class, 'getPendingClearances']);
+Route::post('payments/{id}/verify', [DealPaymentController::class, 'verify']);
+Route::apiResource('payments', DealPaymentController::class);
+
+// Expense Master & Expense Tracking API Routes
+Route::patch('expense-categories/{id}/toggle-status', [ExpenseCategoryController::class, 'toggleStatus']);
+Route::apiResource('expense-categories', ExpenseCategoryController::class);
+
+Route::get('expenses/stats', [ExpenseController::class, 'stats']);
+Route::apiResource('expenses', ExpenseController::class);
+
+

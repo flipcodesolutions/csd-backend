@@ -194,4 +194,29 @@ class Lead extends Model
     {
         return $this->latestAssignment?->assignedByUser;
     }
+
+    /**
+     * Relationship: Lead has many deals
+     */
+    public function deals()
+    {
+        return $this->hasMany(Deal::class, 'lead_id')->latest();
+    }
+
+    /**
+     * Relationship: Latest deal record
+     */
+    public function latestDeal()
+    {
+        return $this->hasOne(Deal::class, 'lead_id')->latestOfMany();
+    }
+
+    /**
+     * Relationship: Lead has many payments across deals
+     */
+    public function payments()
+    {
+        return $this->hasMany(DealPayment::class, 'lead_id')->latest();
+    }
 }
+

@@ -69,6 +69,22 @@ class Quotation extends Model
     }
 
     /**
+     * Relationship: Quotation converted to Deals
+     */
+    public function deals()
+    {
+        return $this->hasMany(Deal::class, 'quotation_id');
+    }
+
+    /**
+     * Relationship: Latest Deal
+     */
+    public function latestDeal()
+    {
+        return $this->hasOne(Deal::class, 'quotation_id')->latestOfMany();
+    }
+
+    /**
      * Generate unique sequential quotation number in format QT-YYYY-XXXX
      */
     public static function generateQuotationNumber(): string

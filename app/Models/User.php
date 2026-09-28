@@ -42,4 +42,37 @@ class User extends Authenticatable
     {
         return $this->hasMany(Quotation::class, 'created_by');
     }
+
+    /**
+     * Relationship: Deals created by User
+     */
+    public function deals()
+    {
+        return $this->hasMany(Deal::class, 'created_by');
+    }
+
+    /**
+     * Relationship: Deals assigned to Sales Executive
+     */
+    public function assignedDeals()
+    {
+        return $this->hasMany(Deal::class, 'sales_executive_id');
+    }
+
+    /**
+     * Relationship: Payment receipts recorded by this User
+     */
+    public function recordedPayments()
+    {
+        return $this->hasMany(DealPayment::class, 'recorded_by');
+    }
+
+    /**
+     * Relationship: Payment receipts verified by this User (Accountant/Manager)
+     */
+    public function verifiedPayments()
+    {
+        return $this->hasMany(DealPayment::class, 'verified_by');
+    }
 }
+
